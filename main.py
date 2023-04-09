@@ -1,21 +1,33 @@
-from fastapi import FastAPI
-import uvicorn
+from fastapi import (FastAPI, WebSocket, WebSocketDisconnect, Request)
+from pydantic import BaseModel
+
+class Item(BaseModel):
+    name : str
+    description : str | None = None
+    price : float
+    tax : float | None = None
 
 app = FastAPI()
 
+
+
 fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+
+@app.post("/items/")
+async def create_item(item : Item) :
+    return item
 
 @app.get("/")
 async def read_root():
-    return {"Hello": "World111"}
+    return {"Hello": "World1112"}
 
 @app.get("/items/{item_id}")
-async def read_item(item_id: int):
+async def read_item(item_id: str, q:str | None = None):
+    if q:
+        return {"item_id" : item_id, "q" : q}    
     return {"item_id" : item_id}
 
 @app.get("/items/")
 async def read_item(skip: int = 0, limit: int = 10):
     return fake_items_db[skip : skip + limit]
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
