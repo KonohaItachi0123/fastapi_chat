@@ -47,7 +47,9 @@ def get_chat(request: Request):
 
 @app.websocket("/api/chat")
 async def chat(websocket: WebSocket):
+
     sender = websocket.cookies.get("X-Authorization")
+
     if sender:
         await manager.connect(websocket, sender)
         response = {
