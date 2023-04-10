@@ -1,4 +1,5 @@
 from fastapi import (FastAPI, WebSocket, WebSocketDisconnect, Request)
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List
 
@@ -27,7 +28,37 @@ manager = SocketManager()
 
 app = FastAPI()
 
+templates = Jinja2Templates(directory="templates")
 
+@app.get("/")
+def get_home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
+
+@app.websocket("/api/chat")
+async def chat(websocket: WebSocket):
+    sender = websocket.cookies.get("X-Authorization")
+    if sender:
+        await manager.connect(websocket, sender)
+        response = {
+            "sender": sender,
+            "message": "got connected"
+        }
+        await manager.broadcast(response)
+        try:
+            while True:
+                data = await websocket.receive_json()
+                await manager.broadcast(data)
+        except WebSocketDisconnect:
+            manager.disconnect(websocket, sender)
+            response['message'] = "left"
+            await manager.broadcast(response)
+
+@app.get("/api/current_user")
+def get_user(request: Request):
+    return request.cookies.get("X-Authorization")
+
+class RegisterValidator(BaseModel):
+    username: str
 
 fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
 
@@ -35,9 +66,7 @@ fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"
 async def create_item(item : Item) :
     return item
 
-@app.get("/")
-async def read_root():
-    return {"Hello1": "World1112"}
+
 
 @app.get("/items/{item_id}")
 async def read_item(item_id: str, q:str | None = None):
